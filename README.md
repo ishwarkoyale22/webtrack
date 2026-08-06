@@ -8,7 +8,7 @@ One client = one website — everything for a client lives on a single detail pa
 ## Features
 
 - 🗄️ **No database server needed** — data lives in `backend/data/webtrack.json` (a small file-backed JSON store) and persists across restarts. Nothing to install, no MongoDB, no Docker
-- 🔐 **Auth** — single admin, JWT, protected routes. With `AUTO_LOGIN=true` (default) the panel **opens directly on the dashboard** — the `/login` page is only used for explicit sign-in. Set `AUTO_LOGIN=false` in `backend/.env` to always require email + password
+- 🔓 **No login screen** — single-admin panel, the dashboard opens directly. The admin profile (used for invoices/settings) is created automatically from the `ADMIN_*` env vars on first run
 - 📊 **Dashboard** — stat cards (clients, revenue, pending, active projects), monthly revenue bar chart, pending-vs-received chart, payment-due + deadline + domain-expiry alerts, recent activity
 - 👥 **Clients** — add/edit/delete, search, filters (stage / payment status / source / date range), grid & table views, Excel/CSV export
 - 📇 **Client Detail (the core page)** — client info, website & project (stage stepper, deadline, priority, notes), payment tracking, before/after screenshot uploads, domain, notes, full activity log, invoice/quotation buttons — all visible & editable on one page
@@ -25,7 +25,7 @@ One client = one website — everything for a client lives on a single detail pa
 | Layer    | Tech |
 |----------|------|
 | Frontend | React 18, Vite, Tailwind CSS, Framer Motion, React Three Fiber, Recharts, jsPDF (+autotable), SheetJS |
-| Backend  | Node.js, Express, JWT, bcrypt, Multer (screenshot uploads) |
+| Backend  | Node.js, Express, bcrypt, Multer (screenshot uploads) |
 | Database | File-backed JSON store (`backend/data/webtrack.json`) — no server to install |
 
 ## Getting started
@@ -41,10 +41,9 @@ Edit `backend/.env` (already created from `.env.example`):
 
 ```env
 PORT=5000
-JWT_SECRET=change-this-to-a-long-random-string
-AUTO_LOGIN=true
 ADMIN_EMAIL=ishwar@gmail.com
 ADMIN_PASSWORD=ishwar1234
+ADMIN_NAME=Ishwar
 ```
 
 Seed the admin account + demo data (optional but recommended):
@@ -71,10 +70,9 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173** — it lands straight on the dashboard.
+Open **http://localhost:5173** — it lands straight on the dashboard. There is no login screen.
 
-- Admin account: `ishwar@gmail.com` / `ishwar1234` (change via `backend/.env` **before** seeding)
-- With `AUTO_LOGIN=false`, the login page requires those credentials instead.
+- The admin profile (shown on invoices and in Settings) comes from the `ADMIN_*` env vars, created automatically on first run.
 
 ### Production build
 
@@ -93,7 +91,7 @@ backend/
   seed.js              # admin + demo data
   store/index.js       # the JSON data store (find/insert/update/delete, atomic saves)
   data/webtrack.json   # your actual data — gitignored
-  middleware/          # auth (JWT), error handler, multer upload
+  middleware/          # admin attach (no login), error handler, multer upload
   models/              # Admin, Client, Project, Payment, Domain, Activity
   routes/              # auth, clients, projects, payments, domains, reports, notifications
   utils/               # activity logger, money math (single source of truth), relations

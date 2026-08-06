@@ -5,7 +5,6 @@ import Layout from './components/Layout';
 import { FullPageLoader } from './components/ui';
 import { useAuth } from './context/AuthContext';
 
-const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Clients = lazy(() => import('./pages/Clients'));
 const ClientDetail = lazy(() => import('./pages/ClientDetail'));
@@ -17,21 +16,10 @@ const Invoice = lazy(() => import('./pages/Invoice'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Settings = lazy(() => import('./pages/Settings'));
 
-/**
- * The panel opens directly — auto-login signs the admin in silently during
- * boot, so nobody is ever redirected to a login screen. (/login still works
- * if visited by hand, e.g. with AUTO_LOGIN=false on the backend.)
- */
+/** There is no login screen — this just waits for the admin profile to load. */
 function Protected({ children }) {
   const { loading } = useAuth();
   if (loading) return <FullPageLoader label="Opening your dashboard" />;
-  return children;
-}
-
-function PublicOnly({ children }) {
-  const { isAuthed, loading } = useAuth();
-  if (loading) return <FullPageLoader label="Checking session" />;
-  if (isAuthed) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -42,15 +30,6 @@ export default function App() {
     <Suspense fallback={<FullPageLoader />}>
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname.split('/')[1] || 'root'}>
-          <Route
-            path="/login"
-            element={
-              <PublicOnly>
-                <Login />
-              </PublicOnly>
-            }
-          />
-
           <Route
             element={
               <Protected>

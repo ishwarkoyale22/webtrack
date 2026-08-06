@@ -298,12 +298,8 @@ export default function Settings() {
       {/* ── Account ── */}
       <Card icon={Building2} title="Account" subtitle="This is a single-admin panel" delay={0.24}>
         <div>
-          <p className="text-sm font-medium">Signed in as {admin?.email}</p>
-          <p className="mt-1 text-xs text-faint">
-            The panel opens directly — no login screen. To require a password instead, set{' '}
-            <code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px]">AUTO_LOGIN=false</code> in{' '}
-            <code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px]">backend/.env</code> and restart the API.
-          </p>
+          <p className="text-sm font-medium">{admin?.email}</p>
+          <p className="mt-1 text-xs text-faint">The panel has no login screen — it opens directly.</p>
         </div>
       </Card>
     </PageTransition>

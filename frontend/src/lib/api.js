@@ -5,25 +5,9 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-export const TOKEN_KEY = 'webtrack_token';
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const status = err.response?.status;
-    // A dead/expired token should drop us straight back to the login screen.
-    if (status === 401 && !err.config?.url?.includes('/auth/login')) {
-      localStorage.removeItem(TOKEN_KEY);
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.assign('/login?expired=1');
-      }
-    }
     const apiMessage = err.response?.data?.message;
     // A 5xx with no JSON message is the dev proxy hitting a dead backend
     // (ECONNREFUSED) — report that honestly instead of a bare status code.
@@ -37,10 +21,6 @@ api.interceptors.response.use(
 
 /* ── Endpoints ─────────────────────────────────────────────── */
 export const authApi = {
-  status: () => api.get('/auth/status').then((r) => r.data),
-  autoLogin: () => api.post('/auth/auto-login').then((r) => r.data),
-  login: (payload) => api.post('/auth/login', payload).then((r) => r.data),
-  register: (payload) => api.post('/auth/register', payload).then((r) => r.data),
   me: () => api.get('/auth/me').then((r) => r.data),
   updateProfile: (payload) => api.put('/auth/profile', payload).then((r) => r.data),
   changePassword: (payload) => api.put('/auth/password', payload).then((r) => r.data),

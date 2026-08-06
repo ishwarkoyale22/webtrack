@@ -21,10 +21,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'webtrack-api', time: new Date().toISOString() }));
 
-// Public
 app.use('/api/auth', require('./routes/auth'));
 
-// Everything below requires a valid JWT
+// No login required — `protect` just attaches the single admin record.
 app.use('/api/clients', protect, require('./routes/clients'));
 app.use('/api/projects', protect, require('./routes/projects'));
 app.use('/api/payments', protect, require('./routes/payments'));

@@ -1,58 +1,29 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { authApi, TOKEN_KEY } from '../lib/api';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { authApi } from '../lib/api';
 
 const AuthContext = createContext(null);
 
+/**
+ * WebTrack has no login screen — it's a single-admin local tool. This just
+ * fetches the admin's profile on boot (name/email/settings shown around the
+ * UI) without gating access to anything.
+ */
 export function AuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const boot = async () => {
-      try {
-        // Existing session first…
-        if (localStorage.getItem(TOKEN_KEY)) {
-          try {
-            setAdmin(await authApi.me());
-            return;
-          } catch {
-            localStorage.removeItem(TOKEN_KEY);
-          }
-        }
-        // …otherwise sign in silently — the panel always opens directly.
-        const { token, admin: user } = await authApi.autoLogin();
-        localStorage.setItem(TOKEN_KEY, token);
-        setAdmin(user);
-      } catch {
-        // Backend unreachable or auto-login disabled — the UI still opens;
-        // individual API calls surface their own errors.
-      } finally {
-        setLoading(false);
-      }
-    };
-    boot();
+    authApi
+      .me()
+      .then(setAdmin)
+      .catch(() => {
+        // Backend unreachable — the UI still opens; individual API calls
+        // surface their own errors.
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  // Kept for the manual /login route (used only when AUTO_LOGIN is off).
-  const login = useCallback(async (email, password) => {
-    const { token, admin: user } = await authApi.login({ email, password });
-    localStorage.setItem(TOKEN_KEY, token);
-    setAdmin(user);
-    return user;
-  }, []);
-
-  const register = useCallback(async (payload) => {
-    const { token, admin: user } = await authApi.register(payload);
-    localStorage.setItem(TOKEN_KEY, token);
-    setAdmin(user);
-    return user;
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ admin, setAdmin, loading, login, register, isAuthed: !!admin }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ admin, setAdmin, loading }}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {
