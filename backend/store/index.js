@@ -1,13 +1,12 @@
 /**
  * WebTrack data store — same public API either way, two backends underneath:
  *
- *  - Firestore, used automatically whenever FIREBASE_PROJECT_ID /
- *    FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY are set. A real shared
- *    database, so data survives across Vercel's separate serverless
- *    instances and cold starts instead of living in one container's
- *    ephemeral /tmp.
+ *  - Supabase (Postgres), used automatically whenever SUPABASE_URL /
+ *    SUPABASE_SERVICE_ROLE_KEY are set. A real shared database, so data
+ *    survives across Vercel's separate serverless instances and cold
+ *    starts instead of living in one container's ephemeral /tmp.
  *  - The local JSON file (backend/data/webtrack.json), used automatically
- *    when no Firebase credentials are configured — e.g. local `npm run dev`.
+ *    when no Supabase credentials are configured — e.g. local `npm run dev`.
  *    Exactly the same behaviour as before.
  *
  * Every route/model calls store.<collection>.find/insert/update/delete
@@ -49,43 +48,67 @@ function markDirty(name) {
 }
 
 /* ── Backend selection ────────────────────────────────────────────── */
-const USE_FIRESTORE = !!(
-  process.env.FIREBASE_PROJECT_ID &&
-  process.env.FIREBASE_CLIENT_EMAIL &&
-  process.env.FIREBASE_PRIVATE_KEY
-);
+const USE_SUPABASE = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-/* ── Firestore backend ────────────────────────────────────────────── */
-let firestore = null;
-if (USE_FIRESTORE) {
-  const admin = require('firebase-admin');
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Vercel env vars can't hold real newlines — the private key is
-        // stored with literal \n and unescaped here.
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  firestore = admin.firestore();
+/* ── Supabase (Postgres) backend ──────────────────────────────────── *
+ * One table per collection (see backend/store/supabase.sql for the exact
+ * schema), each row shaped as { id text primary key, doc jsonb }. `doc`
+ * holds the full record exactly as the rest of the app already expects it
+ * (_id, createdAt, updatedAt, ...) — so matches()/applySort() below don't
+ * need to know or care which backend is active.
+ *
+ * The service_role key is required (not the anon key): it's what lets this
+ * trusted backend server bypass Row Level Security and do full CRUD. It
+ * must never be sent to the frontend or used anywhere in browser code.
+ */
+let supabase = null;
+if (USE_SUPABASE) {
+  const { createClient } = require('@supabase/supabase-js');
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
 }
 
-async function firestoreLoad() {
-  const snaps = await Promise.all(COLLECTIONS.map((name) => firestore.collection('webtrack').doc(name).get()));
+/** collection name → Postgres table name (snake_case). */
+const TABLES = {
+  admins: 'admins',
+  clients: 'clients',
+  projects: 'projects',
+  payments: 'payments',
+  domains: 'domains',
+  activities: 'activities',
+  employees: 'employees',
+  employeePayments: 'employee_payments',
+};
+
+async function supabaseLoad() {
   const next = emptyDb();
-  snaps.forEach((snap, i) => {
-    const name = COLLECTIONS[i];
-    const data = snap.exists ? snap.data() : null;
-    next[name] = Array.isArray(data?.rows) ? data.rows : [];
-  });
+  await Promise.all(
+    COLLECTIONS.map(async (name) => {
+      const { data, error } = await supabase.from(TABLES[name]).select('doc');
+      if (error) throw new Error(`Supabase load failed for "${name}": ${error.message}`);
+      next[name] = (data || []).map((row) => row.doc);
+    })
+  );
   db = next;
 }
 
-async function firestoreFlush(names) {
-  await Promise.all([...names].map((name) => firestore.collection('webtrack').doc(name).set({ rows: db[name] })));
+/** Full collection replace (delete-all then re-insert) — same "whole
+ *  collection is one unit" semantics as the file/Firestore backends, so
+ *  there's no per-row diffing to get wrong. Fine at this app's scale. */
+async function supabaseFlush(names) {
+  await Promise.all(
+    [...names].map(async (name) => {
+      const table = TABLES[name];
+      const { error: delErr } = await supabase.from(table).delete().neq('id', '');
+      if (delErr) throw new Error(`Supabase clear failed for "${name}": ${delErr.message}`);
+
+      const rows = db[name];
+      if (!rows.length) return;
+      const { error: insErr } = await supabase.from(table).insert(rows.map((r) => ({ id: r._id, doc: r })));
+      if (insErr) throw new Error(`Supabase insert failed for "${name}": ${insErr.message}`);
+    })
+  );
 }
 
 /* ── Local JSON file backend ──────────────────────────────────────── */
@@ -122,14 +145,14 @@ function fileFlush() {
 }
 
 /* ── Unified reload / flush ───────────────────────────────────────── *
- * reload() re-reads everything fresh on Firestore (small dataset, cheap —
+ * reload() re-reads everything fresh on Supabase (small dataset, cheap —
  * this is what keeps two different serverless instances from disagreeing).
  * On the file backend it's a no-op after the first call, since the same
  * process already holds the authoritative in-memory copy, same as before.
  */
 async function reload() {
-  if (USE_FIRESTORE) {
-    await firestoreLoad();
+  if (USE_SUPABASE) {
+    await supabaseLoad();
   } else if (!fileLoaded) {
     fileLoad();
     fileLoaded = true;
@@ -141,8 +164,8 @@ async function flushPending() {
   if (!dirty.size) return;
   const names = dirty;
   dirty = new Set();
-  if (USE_FIRESTORE) {
-    await firestoreFlush(names);
+  if (USE_SUPABASE) {
+    await supabaseFlush(names);
   } else {
     fileFlush();
   }
@@ -313,12 +336,12 @@ const store = {
   reload,
   flushPending,
   DATA_FILE,
-  usingFirestore: USE_FIRESTORE,
+  usingSupabase: USE_SUPABASE,
 
   async init() {
     await reload();
     const counts = COLLECTIONS.map((c) => `${db[c].length} ${c}`).join(', ');
-    console.log(`🗄️   Data store ready → ${USE_FIRESTORE ? 'Firestore (project ' + process.env.FIREBASE_PROJECT_ID + ')' : DATA_FILE}`);
+    console.log(`🗄️   Data store ready → ${USE_SUPABASE ? 'Supabase (' + process.env.SUPABASE_URL + ')' : DATA_FILE}`);
     console.log(`    ${counts}`);
     return store;
   },
