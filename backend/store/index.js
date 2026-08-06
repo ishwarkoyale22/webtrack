@@ -10,7 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DEFAULT_DATA_FILE = path.join(__dirname, '..', 'data', 'webtrack.json');
+const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'webtrack.json');
 const TMP_FILE = `${DATA_FILE}.tmp`;
 
@@ -35,6 +36,10 @@ function toDate(value) {
 function load() {
   if (db) return db;
   try {
+    if (!fs.existsSync(DATA_FILE) && fs.existsSync(DEFAULT_DATA_FILE)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.copyFileSync(DEFAULT_DATA_FILE, DATA_FILE);
+    }
     if (fs.existsSync(DATA_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
       db = { ...emptyDb(), ...parsed };
