@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import Background3D from './Background3D';
 import { notificationApi } from '../lib/api';
+
+// The floating 3D shapes are a purely decorative background — they pull in
+// Three.js (~270KB gzipped) so they're loaded lazily, after the real UI is
+// already interactive, instead of blocking first paint on every page.
+const Background3D = lazy(() => import('./Background3D'));
 
 const TITLES = {
   '/': ['Dashboard', 'Your studio at a glance'],
@@ -50,7 +54,9 @@ export default function Layout() {
 
   return (
     <div className="min-h-dvh">
-      <Background3D />
+      <Suspense fallback={null}>
+        <Background3D />
+      </Suspense>
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} alertCount={alerts.length} />
 
       <div className="lg:pl-[248px]">

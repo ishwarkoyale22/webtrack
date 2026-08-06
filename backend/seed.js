@@ -92,8 +92,8 @@ const DEMO = [
   },
 ];
 
-function run() {
-  store.init();
+async function run() {
+  await store.init();
 
   const email = (process.env.ADMIN_EMAIL || 'admin@webtrack.com').toLowerCase();
   const password = process.env.ADMIN_PASSWORD || 'admin123';
@@ -109,7 +109,7 @@ function run() {
 
   if (KEEP_DATA) {
     console.log('↩️   --keep passed, demo data untouched.');
-    store.saveNow();
+    await store.saveNow();
     return;
   }
 
@@ -122,7 +122,7 @@ function run() {
       company: d.company, address: d.address || '', gstin: d.gstin || '', notes: d.notes,
     });
     client.createdAt = d.createdAt; // back-date so growth charts look real
-    store.save();
+    store.save('clients');
 
     Project.create(client._id, d.project);
     Payment.create(client._id, d.payment);
@@ -165,14 +165,12 @@ function run() {
   EmployeePayment.create({ employeeId: emp3._id, amount: 7000, date: `${currentYear}-02-20T10:00:00.000Z`, note: 'Feb stipend' });
   EmployeePayment.create({ employeeId: emp3._id, amount: 2000, date: `${currentYear}-03-20T10:00:00.000Z`, note: 'Mar stipend' });
 
-  store.saveNow();
+  await store.saveNow();
   console.log(`\n✅  Seeded ${DEMO.length} clients & 3 team members with payment records.`);
   console.log(`    Login →  ${email}  /  ${password}\n`);
 }
 
-try {
-  run();
-} catch (err) {
+run().catch((err) => {
   console.error('Seed failed:', err);
   process.exit(1);
-}
+});

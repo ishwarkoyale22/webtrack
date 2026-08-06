@@ -7,7 +7,7 @@ One client = one website — everything for a client lives on a single detail pa
 
 ## Features
 
-- 🗄️ **No database server needed** — data lives in `backend/data/webtrack.json` (a small file-backed JSON store) and persists across restarts. Nothing to install, no MongoDB, no Docker
+- 🗄️ **No database server needed for local dev** — data lives in `backend/data/webtrack.json` (a small file-backed JSON store) and persists across restarts. For production on Vercel (or any serverless host), switch to Firestore by setting the `FIREBASE_*` env vars — see `backend/.env.example`. Every route/model is unchanged either way
 - 🔓 **No login screen** — single-admin panel, the dashboard opens directly. The admin profile (used for invoices/settings) is created automatically from the `ADMIN_*` env vars on first run
 - 📊 **Dashboard** — stat cards (clients, revenue, pending, active projects), monthly revenue bar chart, pending-vs-received chart, payment-due + deadline + domain-expiry alerts, recent activity
 - 👥 **Clients** — add/edit/delete, search, filters (stage / payment status / source / date range), grid & table views, Excel/CSV export
@@ -26,7 +26,7 @@ One client = one website — everything for a client lives on a single detail pa
 |----------|------|
 | Frontend | React 18, Vite, Tailwind CSS, Framer Motion, React Three Fiber, Recharts, jsPDF (+autotable), SheetJS |
 | Backend  | Node.js, Express, bcrypt, Multer (screenshot uploads) |
-| Database | File-backed JSON store (`backend/data/webtrack.json`) — no server to install |
+| Database | Local JSON file for dev, Firestore for production (same store API either way) |
 
 ## Getting started
 
@@ -82,6 +82,23 @@ cd ../backend && set NODE_ENV=production && npm start
 ```
 
 The Express server then serves the built frontend from `frontend/dist` on one port.
+
+### Deploying to Vercel (or any serverless host) — set up Firestore first
+
+Vercel's filesystem is ephemeral and isolated per instance, so the JSON-file
+store cannot be trusted there — data can silently vanish between requests.
+Before deploying:
+
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com) (free).
+2. Enable **Firestore Database** (Native mode, any region).
+3. Project Settings → Service Accounts → **Generate new private key** — downloads a JSON file.
+4. In your Vercel project's Environment Variables, add:
+   - `FIREBASE_PROJECT_ID` — the JSON's `project_id`
+   - `FIREBASE_CLIENT_EMAIL` — the JSON's `client_email`
+   - `FIREBASE_PRIVATE_KEY` — the JSON's `private_key`, pasted exactly as-is (keep the literal `\n`s)
+5. Redeploy. The store switches to Firestore automatically the moment those three vars are present — no code changes needed.
+
+Local development is unaffected — leave those vars unset locally and it keeps using `backend/data/webtrack.json`.
 
 ## Project structure
 

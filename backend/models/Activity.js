@@ -24,7 +24,7 @@ const Activity = {
     // Seeding back-dates entries so the timeline reads naturally.
     if (createdAt) {
       record.createdAt = store.toDate(createdAt) || record.createdAt;
-      store.save();
+      store.save('activities');
     }
     return record;
   },
