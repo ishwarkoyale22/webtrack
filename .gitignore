@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Environment — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime data (your live database + uploaded screenshots)
+backend/data/
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Tooling
+.vercel
+.claude/
+*.log
+npm-debug.log*
+
+# Large local binaries / abandoned downloads — never belongs in git
+*.zip
+*.tgz
+.mongodb/
+mongodb*/
+
+# OS
+.DS_Store
+Thumbs.db
