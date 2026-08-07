@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Plus, Download, Trash2, Edit2, FileSpreadsheet, FileText,
   Calendar, IndianRupee, Wallet, Check, X, Loader2, UserPlus, ArrowUpRight,
+  TrendingUp, TrendingDown, PiggyBank, Percent,
 } from 'lucide-react';
 import { PageTransition, Modal, Input, Select, EmptyState, ConfirmDialog, SkeletonCard } from '../components/ui';
+import { RevenueVsExpenseChart } from '../components/Charts';
 import { teamApi } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import { money, fmtDate, toInputDate, initials, avatarGradient } from '../lib/format';
@@ -52,10 +54,12 @@ export default function Team() {
   // New Payment Form in Cell Modal
   const [payForm, setPayForm] = useState({ amount: '', date: toInputDate(new Date()), note: '' });
   const [payBusy, setPayBusy] = useState(false);
+  const [payNoteTouched, setPayNoteTouched] = useState(false);
 
   // Editing existing payment inside Cell Modal
   const [editingPayId, setEditingPayId] = useState(null);
   const [editPayForm, setEditPayForm] = useState({ amount: '', date: '', note: '' });
+  const [editPayNoteTouched, setEditPayNoteTouched] = useState(false);
 
   const loadMatrix = useCallback(() => {
     setLoading(true);
@@ -128,6 +132,7 @@ export default function Team() {
     // Default date to mid of that month
     const defaultDate = `${year}-${String(monthIdx + 1).padStart(2, '0')}-15`;
     setPayForm({ amount: '', date: defaultDate, note: '' });
+    setPayNoteTouched(false);
     setEditingPayId(null);
     setPayModalOpen(true);
 
@@ -154,6 +159,10 @@ export default function Team() {
     e.preventDefault();
     const amount = Number(payForm.amount);
     if (!amount || amount <= 0) return toast.error('Enter an amount greater than 0');
+    if (!payForm.note.trim()) {
+      setPayNoteTouched(true);
+      return toast.error('Please provide a reason for this expense.');
+    }
 
     setPayBusy(true);
     try {
@@ -165,6 +174,7 @@ export default function Team() {
       });
       toast.success(`${money(amount)} added for ${activeCell.employee.name}`);
       setPayForm({ ...payForm, amount: '', note: '' });
+      setPayNoteTouched(false);
       await reloadCellPayments();
     } catch (err) {
       toast.error(err.friendlyMessage || 'Could not add payment entry');
@@ -180,11 +190,16 @@ export default function Team() {
       date: toInputDate(p.date),
       note: p.note || '',
     });
+    setEditPayNoteTouched(false);
   };
 
   const handleSaveEditPayment = async (pId) => {
     const amount = Number(editPayForm.amount);
     if (!amount || amount <= 0) return toast.error('Enter a valid amount');
+    if (!editPayForm.note.trim()) {
+      setEditPayNoteTouched(true);
+      return toast.error('Please provide a reason for this expense.');
+    }
 
     try {
       await teamApi.updatePayment(pId, {
@@ -271,6 +286,51 @@ export default function Team() {
         </div>
       </section>
 
+      {/* ── Business Overview (P&L) ── */}
+      {!loading && data && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-sm font-semibold">Business Overview</h2>
+            <span className="text-[11px] text-faint">— revenue vs team payroll for {year}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="glass-card px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
+                <TrendingUp size={12} className="text-emerald-400" /> Revenue
+              </p>
+              <p className="mt-1 font-display text-xl font-bold text-emerald-400">{money(data.pnl?.revenue || 0)}</p>
+            </div>
+            <div className="glass-card px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
+                <TrendingDown size={12} className="text-rose-400" /> Team Expense
+              </p>
+              <p className="mt-1 font-display text-xl font-bold text-rose-400">{money(data.pnl?.expense || 0)}</p>
+            </div>
+            <div className="glass-card px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
+                <PiggyBank size={12} className={data.pnl?.netProfit >= 0 ? 'text-brand-300' : 'text-rose-400'} /> Net Profit
+              </p>
+              <p className={`mt-1 font-display text-xl font-bold ${data.pnl?.netProfit >= 0 ? 'text-brand-300' : 'text-rose-400'}`}>
+                {money(data.pnl?.netProfit || 0)}
+              </p>
+            </div>
+            <div className="glass-card px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
+                <Percent size={12} className="text-amber-400" /> Profit Margin
+              </p>
+              <p className="mt-1 font-display text-xl font-bold text-amber-400">
+                {(data.pnl?.marginPercent ?? 0).toFixed(1)}%
+              </p>
+            </div>
+          </div>
+
+          {data.pnl?.monthly?.some((m) => m.revenue || m.expense) && (
+            <RevenueVsExpenseChart data={data.pnl.monthly} />
+          )}
+        </section>
+      )}
+
       {/* ── Stat Cards ── */}
       {!loading && data && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -322,11 +382,23 @@ export default function Team() {
                   <th className="p-3.5 font-bold uppercase tracking-wider text-faint sticky left-0 z-20 bg-slate-900/90 backdrop-blur-md">
                     Employee
                   </th>
-                  {data.months.map((m) => (
-                    <th key={m} className="p-3.5 text-right font-bold uppercase tracking-wider text-faint min-w-[85px]">
-                      {m}
-                    </th>
-                  ))}
+                  {data.months.map((m, mIdx) => {
+                    const monthPnl = data.pnl?.monthly?.[mIdx];
+                    const hasData = monthPnl && (monthPnl.revenue || monthPnl.expense);
+                    return (
+                      <th key={m} className="p-3.5 text-right font-bold uppercase tracking-wider text-faint min-w-[85px]">
+                        <span className="inline-flex items-center gap-1.5">
+                          {hasData && (
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${monthPnl.profit >= 0 ? 'bg-emerald-400' : 'bg-rose-400'}`}
+                              title={`${monthPnl.profit >= 0 ? 'Profitable' : 'Loss'}: ${money(monthPnl.profit)} net`}
+                            />
+                          )}
+                          {m}
+                        </span>
+                      </th>
+                    );
+                  })}
                   <th className="p-3.5 text-right font-bold uppercase tracking-wider text-brand-300 min-w-[100px] bg-brand-500/10">
                     Total
                   </th>
@@ -526,10 +598,12 @@ export default function Team() {
                   onChange={(e) => setPayForm({ ...payForm, date: e.target.value })}
                 />
                 <Input
-                  label="Note / Description (optional)"
-                  placeholder="e.g. Monthly stipend / Bonus"
+                  label="Reason for spending *"
+                  placeholder="e.g. Client meeting travel expenses"
                   value={payForm.note}
                   onChange={(e) => setPayForm({ ...payForm, note: e.target.value })}
+                  error={payNoteTouched && !payForm.note.trim() ? 'Please provide a reason for this expense.' : ''}
+                  onBlur={() => setPayNoteTouched(true)}
                 />
               </div>
               <div className="flex justify-end">
@@ -582,9 +656,12 @@ export default function Team() {
                               onChange={(e) => setEditPayForm({ ...editPayForm, date: e.target.value })}
                             />
                             <Input
-                              label="Note"
+                              label="Reason for spending *"
+                              placeholder="e.g. Client meeting travel expenses"
                               value={editPayForm.note}
                               onChange={(e) => setEditPayForm({ ...editPayForm, note: e.target.value })}
+                              error={editPayNoteTouched && !editPayForm.note.trim() ? 'Please provide a reason for this expense.' : ''}
+                              onBlur={() => setEditPayNoteTouched(true)}
                             />
                           </div>
                           <div className="flex justify-end gap-2">
@@ -618,9 +695,8 @@ export default function Team() {
                           </span>
                           <div>
                             <p className="text-sm font-bold text-emerald-400">{money(p.amount)}</p>
-                            <p className="text-[11px] text-faint">
-                              {fmtDate(p.date)}{p.note ? ` · ${p.note}` : ''}
-                            </p>
+                            <p className="text-[11px] text-faint">{fmtDate(p.date)}</p>
+                            {p.note && <p className="mt-0.5 text-[13px] font-medium text-dim">{p.note}</p>}
                           </div>
                         </div>
 
