@@ -24,7 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const COLLECTIONS = ['admins', 'clients', 'projects', 'payments', 'domains', 'activities', 'employees', 'employeePayments'];
+const COLLECTIONS = ['admins', 'clients', 'projects', 'payments', 'domains', 'activities', 'employees', 'employeePayments', 'documents'];
 const emptyDb = () => Object.fromEntries(COLLECTIONS.map((c) => [c, []]));
 
 /** Mongo-style 24-char hex id, so ids look and slice the same as before. */
@@ -79,6 +79,7 @@ const TABLES = {
   activities: 'activities',
   employees: 'employees',
   employeePayments: 'employee_payments',
+  documents: 'documents',
 };
 
 async function supabaseLoad() {
@@ -327,6 +328,7 @@ const store = {
   activities: new Collection('activities'),
   employees: new Collection('employees'),
   employeePayments: new Collection('employeePayments'),
+  documents: new Collection('documents'),
 
   oid,
   toDate,
@@ -336,6 +338,10 @@ const store = {
   reload,
   flushPending,
   DATA_FILE,
+  // Raw Supabase client + mode flag — used directly by routes/documents.js
+  // for file bytes (Supabase Storage in production, local disk in dev),
+  // since uploaded files aren't JSON-shaped rows like everything else here.
+  supabaseClient: supabase,
   usingSupabase: USE_SUPABASE,
 
   async init() {

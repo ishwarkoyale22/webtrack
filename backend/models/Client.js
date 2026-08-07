@@ -1,4 +1,5 @@
 const store = require('../store');
+const Document = require('./Document');
 
 const SOURCES = ['Referral', 'Social Media', 'Direct'];
 const EMAIL_RX = /^\S+@\S+\.\S+$/;
@@ -75,6 +76,7 @@ const Client = {
     store.payments.deleteMany({ client: _id });
     store.domains.deleteMany({ client: _id });
     store.activities.deleteMany({ client: _id });
+    Document.removeForClient(_id);
     return store.clients.deleteOne({ _id });
   },
 };

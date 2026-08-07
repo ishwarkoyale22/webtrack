@@ -77,6 +77,23 @@ export const notificationApi = {
   list: () => api.get('/notifications').then((r) => r.data),
 };
 
+export const documentApi = {
+  list: (clientId) => api.get(`/documents/client/${clientId}`).then((r) => r.data),
+  upload: (clientId, type, file, onProgress) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('type', type);
+    return api
+      .post(`/documents/client/${clientId}`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => onProgress?.(Math.round((e.loaded * 100) / (e.total || 1))),
+      })
+      .then((r) => r.data);
+  },
+  remove: (id) => api.delete(`/documents/${id}`).then((r) => r.data),
+  downloadUrl: (id) => `${api.defaults.baseURL}/documents/${id}/download`,
+};
+
 export const teamApi = {
   getMatrix: (params) => api.get('/team/matrix', { params }).then((r) => r.data),
   listEmployees: () => api.get('/team/employees').then((r) => r.data),

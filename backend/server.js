@@ -59,6 +59,7 @@ app.use('/api/domains', protect, require('./routes/domains'));
 app.use('/api/reports', protect, require('./routes/reports').router);
 app.use('/api/notifications', protect, require('./routes/notifications'));
 app.use('/api/team', protect, require('./routes/team'));
+app.use('/api/documents', protect, require('./routes/documents'));
 
 // Serve the built frontend in production (single-service deploy)
 if (process.env.NODE_ENV === 'production') {
