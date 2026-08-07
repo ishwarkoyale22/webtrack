@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ComposedChart, Line,
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
@@ -359,6 +359,58 @@ export function Sparkline({ data = [], dataKey = 'revenue', height = 54 }) {
         </AreaChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+/* ── 7. Revenue vs Expense — two bars + a profit line ────────
+   Reuses the Paid/Pending pair from STATUS (green = money in, red
+   = money out) so it reads consistently with every other chart's
+   received/pending language. The profit line's own dots are
+   colour-coded per point: green months, red months. */
+export function RevenueVsExpenseChart({ data = [], height = 300, delay = 0 }) {
+  const p = usePalette();
+  const totalRevenue = data.reduce((a, d) => a + (d.revenue || 0), 0);
+  const totalExpense = data.reduce((a, d) => a + (d.expense || 0), 0);
+  const netProfit = totalRevenue - totalExpense;
+
+  const ProfitDot = ({ cx, cy, payload }) => {
+    const positive = (payload.profit || 0) >= 0;
+    return <circle cx={cx} cy={cy} r={3.5} fill={positive ? p.status.Paid : p.status.Pending} stroke={p.surface} strokeWidth={1.5} />;
+  };
+
+  return (
+    <ChartFrame
+      title="Revenue vs Team Expense"
+      subtitle={`Net ${money(netProfit)} across the year`}
+      height={height}
+      delay={delay}
+      right={
+        <span className={netProfit >= 0 ? 'chip-paid' : 'chip-pending'}>
+          {netProfit >= 0 ? 'Profitable' : 'Loss'}
+        </span>
+      }
+    >
+      <ResponsiveContainer>
+        <ComposedChart data={data} margin={{ top: 18, right: 8, left: -18, bottom: 0 }} barCategoryGap="26%">
+          <CartesianGrid strokeDasharray="3 3" stroke={p.grid} vertical={false} />
+          <XAxis dataKey="month" {...axisProps(p)} />
+          <YAxis {...axisProps(p)} tickFormatter={(v) => money(v, { compact: true })} width={58} />
+          <Tooltip cursor={{ fill: p.grid }} content={<GlassTooltip formatter={(v) => money(v)} />} />
+          <Legend wrapperStyle={{ fontSize: 11.5 }} />
+          <Bar dataKey="revenue" name="Revenue" fill={p.status.Paid} radius={[4, 4, 0, 0]} maxBarSize={28} />
+          <Bar dataKey="expense" name="Team Expense" fill={p.status.Pending} radius={[4, 4, 0, 0]} maxBarSize={28} />
+          <Line
+            type="monotone"
+            dataKey="profit"
+            name="Net Profit"
+            stroke={p.cat[0]}
+            strokeWidth={2.5}
+            dot={<ProfitDot />}
+            activeDot={{ r: 5 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartFrame>
   );
 }
 

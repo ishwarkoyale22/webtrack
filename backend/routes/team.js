@@ -1,9 +1,23 @@
 const express = require('express');
 const Employee = require('../models/Employee');
 const EmployeePayment = require('../models/EmployeePayment');
+const Payment = require('../models/Payment');
+const { round2 } = require('../utils/money');
 const dayjs = require('dayjs');
 
 const router = express.Router();
+
+/** Revenue actually received in each calendar month of `year` (Jan..Dec), from every client's payment history. */
+function revenueByMonthForYear(year) {
+  const byMonth = Array(12).fill(0);
+  Payment.find().forEach((p) => {
+    (p.history || []).forEach((h) => {
+      const d = dayjs(h.date);
+      if (d.year() === year) byMonth[d.month()] += Number(h.amount) || 0;
+    });
+  });
+  return byMonth.map(round2);
+}
 
 /** GET /api/team/employees */
 router.get('/employees', (req, res, next) => {
@@ -155,6 +169,24 @@ router.get('/matrix', (req, res, next) => {
       }
     });
 
+    // ── P&L summary ─────────────────────────────────────────────────────
+    // Expense is broken into categories so other costs (domains, tools,
+    // ads, ...) can be added later without reshaping this response —
+    // `payroll` is the only category that exists today.
+    const revenue = revenueByMonthForYear(year);
+    const totalRevenue = round2(revenue.reduce((a, b) => a + b, 0));
+    const expenseBreakdown = { payroll: round2(grandTotal) };
+    const totalExpense = round2(Object.values(expenseBreakdown).reduce((a, b) => a + b, 0));
+    const netProfit = round2(totalRevenue - totalExpense);
+    const marginPercent = totalRevenue > 0 ? round2((netProfit / totalRevenue) * 100) : 0;
+
+    const monthlyPnl = months.map((label, i) => ({
+      month: label,
+      revenue: revenue[i],
+      expense: round2(colTotals[i]),
+      profit: round2(revenue[i] - colTotals[i]),
+    }));
+
     res.json({
       year,
       months,
@@ -164,6 +196,14 @@ router.get('/matrix', (req, res, next) => {
         rowTotals,
         colTotals,
         grandTotal,
+      },
+      pnl: {
+        revenue: totalRevenue,
+        expense: totalExpense,
+        expenseBreakdown,
+        netProfit,
+        marginPercent,
+        monthly: monthlyPnl,
       },
     });
   } catch (err) {
