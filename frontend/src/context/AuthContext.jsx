@@ -1,29 +1,42 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { authApi } from '../lib/api';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { authApi, TOKEN_KEY } from '../lib/api';
 
 const AuthContext = createContext(null);
 
-/**
- * WebTrack has no login screen — it's a single-admin local tool. This just
- * fetches the admin's profile on boot (name/email/settings shown around the
- * UI) without gating access to anything.
- */
 export function AuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     authApi
       .me()
       .then(setAdmin)
-      .catch(() => {
-        // Backend unreachable — the UI still opens; individual API calls
-        // surface their own errors.
-      })
+      .catch(() => localStorage.removeItem(TOKEN_KEY))
       .finally(() => setLoading(false));
   }, []);
 
-  return <AuthContext.Provider value={{ admin, setAdmin, loading }}>{children}</AuthContext.Provider>;
+  const login = useCallback(async (email, password) => {
+    const { token, admin: user } = await authApi.login({ email, password });
+    localStorage.setItem(TOKEN_KEY, token);
+    setAdmin(user);
+    return user;
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    setAdmin(null);
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ admin, setAdmin, loading, login, logout, isAuthed: !!admin }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {

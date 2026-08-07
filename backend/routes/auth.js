@@ -1,44 +1,61 @@
 const express = require('express');
-const protect = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const Admin = require('../models/Admin');
+const protect = require('../middleware/auth');
 
 const router = express.Router();
 
-/** GET /api/auth/me — the single admin's profile (no login required). */
-router.get('/me', protect, (req, res) => res.json(req.admin));
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+});
+
+const signToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 
 /**
- * PUT /api/auth/profile — profile + settings update.
- * Password changes go through /password so the current password is always verified.
+ * The single admin account is provisioned from ADMIN_* env vars the first
+ * time anyone logs in (works the same whether the store is a fresh local
+ * file or a fresh Supabase project — no separate seed step required).
  */
-router.put('/profile', protect, (req, res, next) => {
+function ensureAdmin() {
+  let admin = Admin.findFirst();
+  if (!admin) {
+    admin = Admin.create({
+      name: process.env.ADMIN_NAME || 'Admin',
+      email: process.env.ADMIN_EMAIL || 'admin@webtrack.com',
+      password: process.env.ADMIN_PASSWORD || 'admin123',
+    });
+  }
+  return admin;
+}
+
+/** POST /api/auth/login */
+router.post('/login', loginLimiter, (req, res, next) => {
   try {
-    const admin = Admin.findById(req.admin._id);
-    Admin.updateProfile(admin, req.body || {});
-    return res.json(Admin.shape(admin));
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
+
+    ensureAdmin();
+    const admin = Admin.findByEmail(email);
+    if (!admin || !Admin.verifyPassword(admin, password)) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    return res.json({ token: signToken(admin._id), admin: Admin.shape(admin) });
   } catch (err) {
     return next(err);
   }
 });
 
-/** PUT /api/auth/password — change the stored admin password. */
-router.put('/password', protect, (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body || {};
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Current and new password are required' });
-    }
+/** GET /api/auth/me */
+router.get('/me', protect, (req, res) => res.json(req.admin));
 
-    const admin = Admin.findById(req.admin._id);
-    if (!Admin.verifyPassword(admin, currentPassword)) {
-      return res.status(401).json({ message: 'Current password is incorrect' });
-    }
-
-    Admin.setPassword(admin, newPassword);
-    return res.json({ message: 'Password updated successfully' });
-  } catch (err) {
-    return next(err);
-  }
-});
+/** POST /api/auth/logout — JWT is stateless; the client just drops the token. */
+router.post('/logout', protect, (req, res) => res.json({ message: 'Logged out' }));
 
 module.exports = router;

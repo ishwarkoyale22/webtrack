@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Menu, Search, Bell, Sun, Moon, ChevronRight, User, Loader2, CalendarClock, Wallet, Globe,
+  Menu, Search, Bell, Sun, Moon, ChevronRight, Loader2, CalendarClock, Wallet, Globe, LogOut,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -256,7 +256,8 @@ function NotificationBell({ alerts = [] }) {
 
 /* ── Admin menu ────────────────────────────────────────────── */
 function AdminMenu() {
-  const { admin } = useAuth();
+  const { admin, logout } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -267,6 +268,12 @@ function AdminMenu() {
   }, []);
 
   if (!admin) return null;
+
+  const handleLogout = () => {
+    setOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -291,13 +298,12 @@ function AdminMenu() {
               <p className="truncate text-[11px] text-faint">{admin.email}</p>
             </div>
             <div className="hr-soft my-1" />
-            <Link
-              to="/settings"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition hover:bg-white/8"
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-rose-300 transition hover:bg-rose-500/10"
             >
-              <User size={15} /> Profile & settings
-            </Link>
+              <LogOut size={15} /> Sign out
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

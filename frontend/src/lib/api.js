@@ -5,9 +5,25 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+export const TOKEN_KEY = 'webtrack_token';
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    const status = err.response?.status;
+    // A dead/expired token should drop us straight back to the login screen.
+    if (status === 401 && !err.config?.url?.includes('/auth/login')) {
+      localStorage.removeItem(TOKEN_KEY);
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login?expired=1');
+      }
+    }
     const apiMessage = err.response?.data?.message;
     // A 5xx with no JSON message is the dev proxy hitting a dead backend
     // (ECONNREFUSED) — report that honestly instead of a bare status code.
@@ -21,9 +37,8 @@ api.interceptors.response.use(
 
 /* ── Endpoints ─────────────────────────────────────────────── */
 export const authApi = {
+  login: (payload) => api.post('/auth/login', payload).then((r) => r.data),
   me: () => api.get('/auth/me').then((r) => r.data),
-  updateProfile: (payload) => api.put('/auth/profile', payload).then((r) => r.data),
-  changePassword: (payload) => api.put('/auth/password', payload).then((r) => r.data),
 };
 
 export const clientApi = {
@@ -91,7 +106,18 @@ export const documentApi = {
       .then((r) => r.data);
   },
   remove: (id) => api.delete(`/documents/${id}`).then((r) => r.data),
-  downloadUrl: (id) => `${api.defaults.baseURL}/documents/${id}/download`,
+  /** Downloads require the auth header, so this fetches a blob and saves it client-side rather than a plain <a href>. */
+  download: async (id, filename) => {
+    const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'document';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export const teamApi = {

@@ -8,7 +8,7 @@ One client = one website — everything for a client lives on a single detail pa
 ## Features
 
 - 🗄️ **No database server needed for local dev** — data lives in `backend/data/webtrack.json` (a small file-backed JSON store) and persists across restarts. For production on Vercel (or any serverless host), switch to Supabase (Postgres) by setting the `SUPABASE_*` env vars — see `backend/.env.example`. Every route/model is unchanged either way
-- 🔓 **No login screen** — single-admin panel, the dashboard opens directly. The admin profile (used for invoices/settings) is created automatically from the `ADMIN_*` env vars on first run
+- 🔐 **Login** — single-admin, JWT-protected. The account is created from the `ADMIN_*` env vars the first time you log in; wrong or missing credentials keep you out
 - 📊 **Dashboard** — stat cards (clients, revenue, pending, active projects), monthly revenue bar chart, pending-vs-received chart, payment-due + deadline + domain-expiry alerts, recent activity
 - 👥 **Clients** — add/edit/delete, search, filters (stage / payment status / source / date range), grid & table views, Excel/CSV export
 - 📇 **Client Detail (the core page)** — client info, website & project (stage stepper, deadline, priority, notes), payment tracking, before/after screenshot uploads, domain, notes, full activity log, invoice/quotation buttons — all visible & editable on one page
@@ -70,9 +70,9 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173** — it lands straight on the dashboard. There is no login screen.
+Open **http://localhost:5173** — you'll land on the login page.
 
-- The admin profile (shown on invoices and in Settings) comes from the `ADMIN_*` env vars, created automatically on first run.
+- Sign in with the `ADMIN_*` values from `backend/.env` (defaults: `admin@webtrack.com` / `admin123`). The account is created automatically on first login.
 
 ### Production build
 
@@ -106,13 +106,13 @@ backend/
   seed.js              # admin + demo data
   store/index.js       # the JSON data store (find/insert/update/delete, atomic saves)
   data/webtrack.json   # your actual data — gitignored
-  middleware/          # admin attach (no login), error handler, multer upload
+  middleware/          # auth (JWT), error handler, multer upload
   models/              # Admin, Client, Project, Payment, Domain, Activity
   routes/              # auth, clients, projects, payments, domains, reports, notifications
   utils/               # activity logger, money math (single source of truth), relations
 
 frontend/src/
-  pages/               # Login, Dashboard, Clients, ClientDetail, Reports, Invoice, Notifications, Settings
+  pages/               # Login, Dashboard, Clients, ClientDetail, Team, Overview, Payments, Reports, Invoice, Notifications
   components/          # Sidebar, Navbar, Layout, StatsCard, Charts, ActivityLog, Background3D, ui kit
   context/             # Auth, Theme, Toast
   lib/                 # api client, formatters, pdf generator, excel/csv export

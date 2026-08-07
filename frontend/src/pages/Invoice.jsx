@@ -282,14 +282,13 @@ export default function Invoice() {
                       {DOC_TYPES.find(([k]) => k === doc.type)?.[1] || doc.type} · {fileSize(doc.size)} · {fmtDate(doc.createdAt)}
                     </p>
                   </div>
-                  <a
-                    href={documentApi.downloadUrl(doc._id)}
-                    download={doc.originalName}
+                  <button
+                    onClick={() => documentApi.download(doc._id, doc.originalName).catch(() => toast.error('Could not download that file'))}
                     className="btn-ghost !px-3 !py-2"
                     aria-label={`Download ${doc.originalName}`}
                   >
                     <Download size={15} />
-                  </a>
+                  </button>
                   <button
                     onClick={() => setConfirmDeleteDoc(doc)}
                     className="btn-ghost !px-3 !py-2 text-rose-300 hover:text-rose-200"
