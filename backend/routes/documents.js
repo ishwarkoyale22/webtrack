@@ -11,7 +11,14 @@ const router = express.Router();
 
 const BUCKET = 'documents';
 const LOCAL_DIR = path.join(__dirname, '..', 'uploads', 'documents');
-if (!fs.existsSync(LOCAL_DIR)) fs.mkdirSync(LOCAL_DIR, { recursive: true });
+
+// Vercel's filesystem is read-only outside /tmp, and this file is required
+// (module-evaluated) on every cold start regardless of storage mode — so
+// this directory is only created lazily, and only when local disk is
+// actually going to be used (never in Supabase mode).
+function ensureLocalDir() {
+  if (!fs.existsSync(LOCAL_DIR)) fs.mkdirSync(LOCAL_DIR, { recursive: true });
+}
 
 const safeName = (original) => {
   const ext = path.extname(original).slice(0, 10);
@@ -27,6 +34,7 @@ async function saveBytes(storedName, buffer, mimeType) {
       .upload(storedName, buffer, { contentType: mimeType, upsert: false });
     if (error) throw new Error(`Could not save the file to storage: ${error.message}`);
   } else {
+    ensureLocalDir();
     fs.writeFileSync(path.join(LOCAL_DIR, storedName), buffer);
   }
 }
