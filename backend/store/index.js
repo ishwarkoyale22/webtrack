@@ -65,7 +65,13 @@ let supabase = null;
 if (USE_SUPABASE) {
   const { createClient } = require('@supabase/supabase-js');
   supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
+    // This is a static server-side service-role key, not a user session —
+    // autoRefreshToken defaults to true and otherwise starts a background
+    // GoTrue refresh ticker with nothing legitimate to refresh, which is
+    // the actual source of the intermittent "JWT issued at future" errors
+    // (confirmed: identical requests via raw REST calls never fail; only
+    // ones routed through this client's auth subsystem do).
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
 }
 
@@ -82,11 +88,31 @@ const TABLES = {
   documents: 'documents',
 };
 
+/** Retries a flaky Supabase call once after a short delay — belt-and-braces
+ *  on top of the autoRefreshToken fix above, in case of any other transient
+ *  network/infra hiccup talking to Supabase. Postgrest-js never rejects —
+ *  it always resolves with { data, error } — so a thrown exception isn't
+ *  the only failure shape worth retrying on.
+ */
+async function withRetry(fn, attempts = 2) {
+  let last;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      last = await fn();
+      if (!last?.error) return last;
+    } catch (err) {
+      last = { error: err };
+    }
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, 250));
+  }
+  return last;
+}
+
 async function supabaseLoad() {
   const next = emptyDb();
   await Promise.all(
     COLLECTIONS.map(async (name) => {
-      const { data, error } = await supabase.from(TABLES[name]).select('doc');
+      const { data, error } = await withRetry(() => supabase.from(TABLES[name]).select('doc'));
       if (error) throw new Error(`Supabase load failed for "${name}": ${error.message}`);
       next[name] = (data || []).map((row) => row.doc);
     })
@@ -101,12 +127,14 @@ async function supabaseFlush(names) {
   await Promise.all(
     [...names].map(async (name) => {
       const table = TABLES[name];
-      const { error: delErr } = await supabase.from(table).delete().neq('id', '');
+      const { error: delErr } = await withRetry(() => supabase.from(table).delete().neq('id', ''));
       if (delErr) throw new Error(`Supabase clear failed for "${name}": ${delErr.message}`);
 
       const rows = db[name];
       if (!rows.length) return;
-      const { error: insErr } = await supabase.from(table).insert(rows.map((r) => ({ id: r._id, doc: r })));
+      const { error: insErr } = await withRetry(() =>
+        supabase.from(table).insert(rows.map((r) => ({ id: r._id, doc: r })))
+      );
       if (insErr) throw new Error(`Supabase insert failed for "${name}": ${insErr.message}`);
     })
   );
