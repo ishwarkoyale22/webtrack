@@ -14,7 +14,6 @@ router.get('/', (req, res, next) => {
       ledgers: loadLedgers(),
       projects: loadProjects(),
       domains: loadDomains(),
-      settings: req.admin?.settings,
     });
 
     res.json({

@@ -1,7 +1,7 @@
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard, Users, Table2, Wallet, BarChart3, FileText, Bell, Settings, X, Sparkles, UserCheck,
+  LayoutDashboard, Users, Table2, Wallet, BarChart3, FileText, Bell, X, Sparkles, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { initials } from '../lib/format';
@@ -15,7 +15,6 @@ const NAV = [
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/invoice', label: 'Documents', icon: FileText },
   { to: '/notifications', label: 'Notifications', icon: Bell },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
 function NavItems({ onNavigate, alertCount }) {
@@ -78,7 +77,7 @@ function AdminCard() {
   if (!admin) return null;
 
   return (
-    <Link to="/settings" className="glass-card block p-3 transition hover:border-brand-400/50">
+    <div className="glass-card p-3">
       <div className="flex items-center gap-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-cyanic-400 text-[13px] font-bold text-white">
           {initials(admin.name) || 'A'}
@@ -87,9 +86,8 @@ function AdminCard() {
           <p className="truncate text-sm font-semibold">{admin.name}</p>
           <p className="truncate text-[11px] text-faint">{admin.email}</p>
         </div>
-        <Settings size={16} className="shrink-0 text-faint" />
       </div>
-    </Link>
+    </div>
   );
 }
 

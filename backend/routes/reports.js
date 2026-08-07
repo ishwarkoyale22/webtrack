@@ -81,7 +81,7 @@ router.get('/dashboard', (req, res, next) => {
     }));
 
     // ── Alerts ────────────────────────────────────────────────────────────
-    const alerts = buildAlerts({ ledgers, projects, domains, settings: req.admin?.settings });
+    const alerts = buildAlerts({ ledgers, projects, domains });
 
     const recentActivity = Activity.recent(12).map((a) => ({
       ...a,
@@ -110,10 +110,14 @@ router.get('/dashboard', (req, res, next) => {
   }
 });
 
+// Fixed alert windows — no longer admin-configurable.
+const PAYMENT_DUE_DAYS = 7;
+const DEADLINE_ALERT_DAYS = 7;
+
 /** Shared alert builder — also powers /api/notifications. */
-function buildAlerts({ ledgers, projects, domains, settings }) {
-  const dueDays = settings?.paymentDueDays ?? 7;
-  const deadlineDays = settings?.deadlineAlertDays ?? 7;
+function buildAlerts({ ledgers, projects, domains }) {
+  const dueDays = PAYMENT_DUE_DAYS;
+  const deadlineDays = DEADLINE_ALERT_DAYS;
   const alerts = [];
   const now = dayjs();
 

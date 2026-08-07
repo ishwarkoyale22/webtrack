@@ -18,7 +18,6 @@ const TITLES = {
   '/reports': ['Reports', 'Revenue, growth and collection insights'],
   '/invoice': ['Documents', 'Upload, download and manage client documents'],
   '/notifications': ['Notifications', 'Payment and deadline alerts'],
-  '/settings': ['Settings', 'Profile, security and defaults'],
 };
 
 function useTitle(pathname) {
