@@ -613,10 +613,11 @@ export default function ClientDetail() {
                 <FileSignature size={15} /> Generate Quotation PDF
               </button>
               <Link to={`/invoice/${id}`} className="btn-ghost w-full">
-                <Sparkles size={15} /> Preview in Documents
+                <Sparkles size={15} /> Upload a document
               </Link>
               <p className="pt-1 text-[11px] leading-relaxed text-faint">
-                Both documents pull the client, website, payment and domain details straight from this page.
+                Generated PDFs pull the client, website, payment and domain details straight from this page. You can
+                also upload your own invoice, quotation or agreement files under Documents.
               </p>
             </div>
           </Panel>

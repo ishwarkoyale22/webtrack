@@ -16,7 +16,7 @@ const TITLES = {
   '/overview': ['Overview', 'All clients, pricing and status in one table'],
   '/payments': ['Payments', 'Manage payment history and edit log'],
   '/reports': ['Reports', 'Revenue, growth and collection insights'],
-  '/invoice': ['Documents', 'Generate invoices and quotations'],
+  '/invoice': ['Documents', 'Upload, download and manage client documents'],
   '/notifications': ['Notifications', 'Payment and deadline alerts'],
   '/settings': ['Settings', 'Profile, security and defaults'],
 };
