@@ -98,25 +98,6 @@ function AdminCard() {
 export default function Sidebar({ open, onClose, alertCount = 0 }) {
   return (
     <>
-      {/* Desktop rail */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-6 p-4 lg:flex">
-        <div className="glass-card flex h-full flex-col gap-6 p-4">
-          <Brand />
-          <div className="hr-soft" />
-          <NavItems alertCount={alertCount} />
-          <div className="mt-auto flex flex-col gap-3">
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-600/30 to-cyanic-500/20 p-3.5 ring-1 ring-white/10">
-              <div className="absolute -right-6 -top-6 h-16 w-16 animate-float rounded-full bg-brand-400/30 blur-xl" />
-              <p className="text-xs font-semibold">One client, one website.</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-faint">
-                Everything for a client lives on a single detail page.
-              </p>
-            </div>
-            <AdminCard />
-          </div>
-        </div>
-      </aside>
-
       {/* Mobile drawer */}
       <AnimatePresence>
         {open && (

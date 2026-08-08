@@ -369,7 +369,7 @@
     animation: shimmer 1.6s infinite;
   }
 
-  /* Sidebar active pill */
+  /* Sidebar active pill (still used by the mobile drawer) */
   .nav-item {
     @apply relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium;
     color: rgb(var(--txt-2));
@@ -386,6 +386,35 @@
     color: #fff;
   }
   :root:not(.dark) .nav-item-active {
+    color: #fff;
+  }
+
+  /* ── Concept 1: full-width glass top nav bar ── */
+  .top-nav-bar {
+    background-color: rgb(var(--bg-1) / 0.9);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border-bottom: 1px solid rgb(var(--stroke) / var(--stroke-a));
+    box-shadow: 0 1px 24px -4px rgb(var(--shadow) / 0.14);
+  }
+
+  /* Individual horizontal nav link */
+  .h-nav-item {
+    @apply relative flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium;
+    color: rgb(var(--txt-2));
+    white-space: nowrap;
+    z-index: 0;
+    will-change: transform;
+    transition: color 0.18s ease;
+  }
+  .h-nav-item:hover {
+    color: rgb(var(--txt-1));
+  }
+  /* Active state — text turns white; the purple pill is rendered behind via Framer Motion */
+  .h-nav-item-active {
+    color: #fff;
+  }
+  :root:not(.dark) .h-nav-item-active {
     color: #fff;
   }
 

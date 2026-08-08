@@ -1,36 +1,14 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { notificationApi } from '../lib/api';
 
-// The floating 3D shapes are a purely decorative background — they pull in
-// Three.js (~270KB gzipped) so they're loaded lazily, after the real UI is
-// already interactive, instead of blocking first paint on every page.
-const Background3D = lazy(() => import('./Background3D'));
-
-const TITLES = {
-  '/': ['Dashboard', 'Your studio at a glance'],
-  '/clients': ['Clients', 'Every client and their website'],
-  '/overview': ['Overview', 'All clients, pricing and status in one table'],
-  '/payments': ['Payments', 'Manage payment history and edit log'],
-  '/reports': ['Reports', 'Revenue, growth and collection insights'],
-  '/invoice': ['Documents', 'Upload, download and manage client documents'],
-  '/notifications': ['Notifications', 'Payment and deadline alerts'],
-};
-
-function useTitle(pathname) {
-  if (pathname.startsWith('/clients/') && pathname !== '/clients') return ['Client Detail', 'Everything in one place'];
-  if (pathname.startsWith('/payments/')) return TITLES['/payments'];
-  return TITLES[pathname] || ['WebTrack', ''];
-}
-
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [alerts, setAlerts] = useState([]);
-  const { pathname } = useLocation();
-  const [title, subtitle] = useTitle(pathname);
+  const [alerts, setAlerts]     = useState([]);
+  const { pathname }            = useLocation();
 
   const loadAlerts = useCallback(() => {
     notificationApi
@@ -41,8 +19,8 @@ export default function Layout() {
 
   useEffect(() => {
     loadAlerts();
-    // Keep the bell honest without hammering the API.
-    const id = setInterval(loadAlerts, 120000);
+    // Refresh alerts in the background every 2 minutes without hammering the API.
+    const id = setInterval(loadAlerts, 120_000);
     return () => clearInterval(id);
   }, [loadAlerts, pathname]);
 
@@ -53,28 +31,26 @@ export default function Layout() {
 
   return (
     <div className="min-h-dvh">
-      <Suspense fallback={null}>
-        <Background3D />
-      </Suspense>
+      {/* Mobile slide-in drawer (hamburger → opens this) */}
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} alertCount={alerts.length} />
 
-      <div className="lg:pl-[248px]">
-        <div className="mx-auto w-full max-w-[1500px] px-3 pb-10 sm:px-4">
-          <Navbar onMenu={() => setMenuOpen(true)} alerts={alerts} title={title} subtitle={subtitle} />
+      {/* Two-tier sticky top navigation — full viewport width */}
+      <Navbar onMenu={() => setMenuOpen(true)} alerts={alerts} />
 
-          <main>
-            <AnimatePresence mode="wait">
-              <Outlet key={pathname} context={{ refreshAlerts: loadAlerts, alerts }} />
-            </AnimatePresence>
-          </main>
+      {/* Page content — full width, no left-sidebar offset */}
+      <div className="mx-auto w-full max-w-[1500px] px-3 pt-5 pb-10 sm:px-5 sm:pt-6">
+        <main>
+          <AnimatePresence mode="wait">
+            <Outlet key={pathname} context={{ refreshAlerts: loadAlerts, alerts }} />
+          </AnimatePresence>
+        </main>
 
-          <footer className="mt-12 flex flex-col items-center gap-1 pb-4 text-center">
-            <div className="hr-soft mb-4 w-full" />
-            <p className="text-[11px] text-faint">
-              WebTrack — client, project, payment &amp; domain tracking in one console.
-            </p>
-          </footer>
-        </div>
+        <footer className="mt-12 flex flex-col items-center gap-1 pb-4 text-center">
+          <div className="hr-soft mb-4 w-full" />
+          <p className="text-[11px] text-faint">
+            WebTrack — client, project, payment &amp; domain tracking in one console.
+          </p>
+        </footer>
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
-import Background3D from '../components/Background3D';
 
 const HIGHLIGHTS = [
   { icon: LayoutDashboard, title: 'Every client on one page', text: 'Website, payments, domain, notes and history together.' },
@@ -55,7 +54,6 @@ export default function Login() {
 
   return (
     <div className="relative min-h-dvh overflow-hidden">
-      <Background3D />
 
       <button
         onClick={toggle}
