@@ -49,16 +49,22 @@
     color: rgb(var(--txt-1));
     min-height: 100dvh;
     overflow-x: hidden;
+    /* iOS momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
     transition: background-color 0.5s cubic-bezier(0.22, 1, 0.36, 1), color 0.35s ease;
   }
 
-  /* Aurora field — the gradient wash behind every page */
+  /* Aurora field — GPU-promoted so it never causes layout/paint */
   body::before {
     content: '';
     position: fixed;
     inset: -20%;
     z-index: -2;
     pointer-events: none;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
     background:
       radial-gradient(46rem 46rem at 12% 8%, rgba(124, 77, 255, 0.28), transparent 60%),
       radial-gradient(40rem 40rem at 88% 12%, rgba(34, 211, 238, 0.2), transparent 60%),
@@ -118,6 +124,13 @@
     background-clip: padding-box;
   }
 
+  /* Smooth, hardware-accelerated text rendering */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   :focus-visible {
     outline: 2px solid rgba(124, 77, 255, 0.85);
     outline-offset: 2px;
@@ -147,9 +160,15 @@
 
   .glass-card {
     @apply glass rounded-2xl relative overflow-hidden;
-    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.35s ease;
+    /* Isolate each card into its own compositor layer */
+    contain: layout style;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    transition:
+      transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.3s ease;
   }
 
   /* Specular sheen across the top edge of every card */
@@ -191,6 +210,8 @@
     @apply btn text-white relative overflow-hidden;
     background: linear-gradient(120deg, #7c4dff 0%, #6d34f2 45%, #22d3ee 130%);
     box-shadow: 0 10px 30px -10px rgba(124, 77, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    will-change: transform;
+    backface-visibility: hidden;
   }
   .btn-primary:hover {
     box-shadow: 0 14px 44px -10px rgba(124, 77, 255, 1), 0 0 26px rgba(34, 211, 238, 0.45),
@@ -213,6 +234,8 @@
   .btn-ghost {
     @apply btn glass;
     color: rgb(var(--txt-1));
+    will-change: transform;
+    backface-visibility: hidden;
   }
   .btn-ghost:hover {
     border-color: rgba(124, 77, 255, 0.5);
@@ -350,7 +373,9 @@
   .nav-item {
     @apply relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium;
     color: rgb(var(--txt-2));
-    transition: color 0.25s ease, background-color 0.25s ease, transform 0.25s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+    transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s cubic-bezier(0.22,1,0.36,1);
   }
   .nav-item:hover {
     color: rgb(var(--txt-1));

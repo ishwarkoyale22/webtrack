@@ -30,7 +30,8 @@ function NavItems({ onNavigate, alertCount }) {
               {active && (
                 <motion.span
                   layoutId="nav-pill"
-                  transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 36, mass: 0.6 }}
+                  style={{ willChange: 'transform' }}
                   className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 shadow-glow"
                 />
               )}

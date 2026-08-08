@@ -7,10 +7,11 @@ import { X, Loader2, Inbox, AlertTriangle } from 'lucide-react';
 export function PageTransition({ children, className = '' }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18, filter: 'blur(6px)' }}
-      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      exit={{ opacity: 0, y: -12, filter: 'blur(6px)' }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      style={{ willChange: 'opacity, transform' }}
       className={className}
     >
       {children}
@@ -83,12 +84,12 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            initial={{ opacity: 0, y: 40, scale: 0.96, rotateX: 8 }}
-            animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
-            exit={{ opacity: 0, y: 30, scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            initial={{ opacity: 0, y: 32, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.7 }}
             className={`glass-card relative z-10 w-full ${widths[size]} max-h-[92dvh] overflow-hidden rounded-b-none sm:rounded-2xl`}
-            style={{ transformPerspective: 1200 }}
+            style={{ willChange: 'transform, opacity' }}
           >
             <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
               <div>
@@ -210,9 +211,9 @@ export function Switch({ checked, onChange, label, hint, disabled }) {
       >
         <motion.span
           layout
-          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+          transition={{ type: 'spring', stiffness: 600, damping: 38, mass: 0.6 }}
           className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-md"
-          style={{ left: checked ? 26 : 4 }}
+          style={{ left: checked ? 26 : 4, willChange: 'transform' }}
         />
       </button>
     </label>

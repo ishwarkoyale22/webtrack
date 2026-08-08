@@ -2,16 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Save, Trash2, FileText, FileSignature, Loader2, User, Building2, Wallet, Globe,
+  ArrowLeft, Save, Trash2, FileText, Loader2, User, Building2, Wallet, Globe,
   Activity as ActivityIcon, Plus, Check, ImageIcon, Upload, X, ExternalLink,
-  Phone, Mail, IndianRupee, History, Sparkles,
+  Phone, Mail, IndianRupee, History, Download, FileBadge, FileCheck, FileArchive,
 } from 'lucide-react';
 import ActivityLog from '../components/ActivityLog';
 import { PageTransition, FullPageLoader, Input, ConfirmDialog, SectionTitle } from '../components/ui';
-import { clientApi, projectApi, paymentApi, domainApi } from '../lib/api';
+import { clientApi, projectApi, paymentApi, domainApi, documentApi } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { generateInvoice, generateQuotation } from '../lib/pdf';
 import {
   money, fmtDate, toInputDate, initials, avatarGradient, statusChip,
 } from '../lib/format';
@@ -146,12 +145,25 @@ function ShotGallery({ type, shots = [], clientId, onChange }) {
   );
 }
 
+/* ── Doc type config ───────────────────────────────────────── */
+const DOC_TYPES = [
+  { key: 'invoice',   label: 'Invoice',   Icon: FileText,    color: 'from-brand-500 to-indigo-500' },
+  { key: 'quotation', label: 'Quotation', Icon: FileBadge,   color: 'from-cyan-500 to-teal-500' },
+  { key: 'agreement', label: 'Agreement', Icon: FileCheck,   color: 'from-amber-500 to-orange-500' },
+];
+
+const TYPE_CHIP = {
+  invoice:   'bg-brand-500/15 text-brand-300 ring-brand-500/30',
+  quotation: 'bg-cyan-500/15 text-cyan-300 ring-cyan-500/30',
+  agreement: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
+};
+
 /* ── Page ──────────────────────────────────────────────────── */
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { admin } = useAuth();
+  useAuth();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -166,6 +178,17 @@ export default function ClientDetail() {
   const [saving, setSaving] = useState({});
   const [entry, setEntry] = useState({ amount: '' });
   const [addingEntry, setAddingEntry] = useState(false);
+
+  // Documents
+  const [documents, setDocuments] = useState([]);
+  const [docUploading, setDocUploading] = useState({});
+  const [docDeleting, setDocDeleting] = useState({});
+  const docInputRefs = useRef({});
+
+  const reloadDocs = useCallback(
+    () => documentApi.list(id).then(setDocuments).catch(() => {}),
+    [id]
+  );
 
   const hydrate = useCallback((d) => {
     setData(d);
@@ -194,7 +217,7 @@ export default function ClientDetail() {
 
   useEffect(() => {
     setLoading(true);
-    reload()
+    Promise.all([reload(), reloadDocs()])
       .catch((e) => {
         toast.error(e.friendlyMessage || 'Could not load this client');
         navigate('/clients', { replace: true });
@@ -304,23 +327,35 @@ export default function ClientDetail() {
     }
   };
 
-  const makeDoc = (kind) => {
+  const uploadDoc = async (type, file) => {
+    if (!file) return;
+    setDocUploading((s) => ({ ...s, [type]: true }));
     try {
-      const fn = kind === 'invoice' ? generateInvoice : generateQuotation;
-      fn(data, admin);
-      clientApi
-        .addActivity(id, {
-          type: 'document',
-          action: `${kind === 'invoice' ? 'Invoice' : 'Quotation'} generated`,
-          message: `A ${kind} PDF was generated and downloaded.`,
-        })
-        .then(reload)
-        .catch(() => {});
-      toast.success(`${kind === 'invoice' ? 'Invoice' : 'Quotation'} downloaded.`);
+      await documentApi.upload(id, type, file);
+      await reloadDocs();
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} uploaded successfully.`);
     } catch (e) {
-      toast.error(`Could not generate the ${kind}: ${e.message}`);
+      toast.error(e.friendlyMessage || 'Upload failed');
+    } finally {
+      setDocUploading((s) => ({ ...s, [type]: false }));
+      if (docInputRefs.current[type]) docInputRefs.current[type].value = '';
     }
   };
+
+  const deleteDoc = async (doc) => {
+    setDocDeleting((s) => ({ ...s, [doc._id]: true }));
+    try {
+      await documentApi.remove(doc._id);
+      await reloadDocs();
+      toast.success(`${doc.originalName} deleted.`);
+    } catch (e) {
+      toast.error(e.friendlyMessage || 'Could not delete document');
+    } finally {
+      setDocDeleting((s) => ({ ...s, [doc._id]: false }));
+    }
+  };
+
+  const downloadDoc = (doc) => documentApi.download(doc._id, doc.originalName);
 
   if (loading || !data) return <FullPageLoader label="Opening client" />;
 
@@ -363,12 +398,6 @@ export default function ClientDetail() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => makeDoc('invoice')} className="btn-primary">
-              <FileText size={15} /> Invoice PDF
-            </button>
-            <button onClick={() => makeDoc('quotation')} className="btn-ghost">
-              <FileSignature size={15} /> Quotation
-            </button>
             <button onClick={() => setConfirmDelete(true)} className="btn-ghost !text-rose-400 hover:!border-rose-500/50">
               <Trash2 size={15} />
             </button>
@@ -603,22 +632,103 @@ export default function ClientDetail() {
             </div>
           </Panel>
 
-          {/* Documents */}
-          <Panel icon={FileText} title="Documents" subtitle="Auto-filled from this page" delay={0.17}>
+          {/* Documents — Upload */}
+          <Panel icon={FileText} title="Documents" subtitle="Upload client documents" delay={0.17}>
             <div className="space-y-2">
-              <button onClick={() => makeDoc('invoice')} className="btn-primary w-full">
-                <FileText size={15} /> Generate Invoice PDF
-              </button>
-              <button onClick={() => makeDoc('quotation')} className="btn-ghost w-full">
-                <FileSignature size={15} /> Generate Quotation PDF
-              </button>
-              <Link to={`/invoice/${id}`} className="btn-ghost w-full">
-                <Sparkles size={15} /> Upload a document
-              </Link>
-              <p className="pt-1 text-[11px] leading-relaxed text-faint">
-                Generated PDFs pull the client, website, payment and domain details straight from this page. You can
-                also upload your own invoice, quotation or agreement files under Documents.
-              </p>
+              {DOC_TYPES.map(({ key, label, Icon, color }) => (
+                <div key={key}>
+                  <input
+                    ref={(el) => { docInputRefs.current[key] = el; }}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    hidden
+                    onChange={(e) => uploadDoc(key, e.target.files?.[0])}
+                  />
+                  <button
+                    onClick={() => docInputRefs.current[key]?.click()}
+                    disabled={docUploading[key]}
+                    className="group relative w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/8 disabled:opacity-60"
+                  >
+                    <div className={`absolute inset-y-0 left-0 w-1 rounded-l-xl bg-gradient-to-b ${color}`} />
+                    <div className="flex items-center gap-3 pl-2">
+                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${color} text-white shadow-sm`}>
+                        {docUploading[key] ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">
+                          {docUploading[key] ? 'Uploading…' : `Upload ${label}`}
+                        </p>
+                        <p className="text-[11px] text-faint">PDF, DOC, or image</p>
+                      </div>
+                      <Upload size={14} className="shrink-0 text-faint transition group-hover:text-white" />
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {/* Documents — Uploaded list */}
+          <Panel icon={FileArchive} title="Uploaded Documents" subtitle={`${documents.length} file${documents.length === 1 ? '' : 's'} stored`} delay={0.2}>
+            <div className="space-y-2">
+              <AnimatePresence initial={false}>
+                {documents.length === 0 && (
+                  <motion.p
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="rounded-xl border border-dashed border-white/12 py-6 text-center text-xs text-faint"
+                  >
+                    No documents uploaded yet.
+                  </motion.p>
+                )}
+                {documents.map((doc) => {
+                  const cfg = DOC_TYPES.find((t) => t.key === doc.type) || DOC_TYPES[0];
+                  return (
+                    <motion.div
+                      key={doc._id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="group flex items-center gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/8 transition hover:bg-white/8"
+                    >
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${cfg.color} text-white shadow-sm`}>
+                        <cfg.Icon size={15} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold" title={doc.originalName}>
+                          {doc.originalName}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${TYPE_CHIP[doc.type]}`}>
+                            {doc.type.charAt(0).toUpperCase() + doc.type.slice(1)}
+                          </span>
+                          <span className="text-[10.5px] text-faint">{fmtDate(doc.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                        <button
+                          onClick={() => downloadDoc(doc)}
+                          aria-label="Download"
+                          className="grid h-7 w-7 place-items-center rounded-lg text-faint transition hover:bg-brand-500/15 hover:text-brand-300"
+                        >
+                          <Download size={13} />
+                        </button>
+                        <button
+                          onClick={() => deleteDoc(doc)}
+                          disabled={docDeleting[doc._id]}
+                          aria-label="Delete"
+                          className="grid h-7 w-7 place-items-center rounded-lg text-faint transition hover:bg-rose-500/15 hover:text-rose-400 disabled:opacity-40"
+                        >
+                          {docDeleting[doc._id] ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           </Panel>
 

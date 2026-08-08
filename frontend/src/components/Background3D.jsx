@@ -14,7 +14,8 @@ function Blob({ position, scale, color, speed = 1, distort = 0.42 }) {
 
   return (
     <Float speed={1.1 * speed} rotationIntensity={0.5} floatIntensity={1.5}>
-      <Icosahedron ref={ref} args={[1, 12]} position={position} scale={scale}>
+      {/* Detail 4 instead of 12 — visually indistinguishable at this opacity/blur, 9× fewer triangles */}
+      <Icosahedron ref={ref} args={[1, 4]} position={position} scale={scale}>
         <MeshDistortMaterial
           color={color}
           distort={distort}
@@ -36,7 +37,8 @@ function Knot({ position, scale, color }) {
   });
   return (
     <Float speed={0.8} rotationIntensity={0.9} floatIntensity={2.2}>
-      <TorusKnot ref={ref} args={[0.72, 0.22, 128, 24]} position={position} scale={scale}>
+      {/* Reduced tube segments 128→80, radial 24→16 */}
+      <TorusKnot ref={ref} args={[0.72, 0.22, 80, 16]} position={position} scale={scale}>
         <meshStandardMaterial color={color} roughness={0.14} metalness={0.9} transparent opacity={0.6} />
       </TorusKnot>
     </Float>
@@ -102,11 +104,12 @@ export default function Background3D() {
     <div
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 -z-10 opacity-[0.55] transition-opacity duration-700 dark:opacity-70"
+      style={{ contain: 'strict', willChange: 'opacity' }}
     >
       <Canvas
-        dpr={[1, 1.5]}
+        dpr={1}
         camera={{ position: [0, 0, 9], fov: 52 }}
-        gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
+        gl={{ antialias: false, alpha: true, powerPreference: 'low-power' }}
         frameloop="always"
       >
         <Suspense fallback={null}>
